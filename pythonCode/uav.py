@@ -25,6 +25,8 @@ class uav:
         self.ownedContracts=[]
         self.nervousness=0
         self.since=time.time()
+        self.currx=gx
+        self.curry=gy
         print(posList)
 
         self.posStates=[]
@@ -40,40 +42,68 @@ class uav:
         
         self.makeGoalsFromContracts()
         
-        
+        self.makeDiscreteMDP(self.states,self.actions)
     
-        self.uavMDP= MDP(["closer","farther"],["north","south","east","west"])
-        self.history={}
-        for s in self.states:
-            for a in self.actions:
-                self.uavMDP.link(s,a,self.states[2])
-        for s in self.states:
-            self.uavMDP.probs(s,self.actions, [.25,.25,.25,.25])
-
-        self.uavMDP.currState="closer"
-        self.uavMDP.buildMDP()
-        for s in self.states:
-            for a in self.actions:
-                self.history[(s,a)]=0
 
         #sim train
         
-        for i in range(1000):
-            self.run(gx-random.randint(-10,10),gy-random.randint(-10,10),gx,gy)
-        self.alterOdds()
+        #for i in range(1000):
+         #   self.run(gx-random.randint(-10,10),gy-random.randint(-10,10),gx,gy)
+        #self.alterOdds()
 
+    
         
         print("finished init")
 
+    def reINIT(self):
+        self.makeGoalsFromContracts()
+        print(self.posStates)
+        self.makeDiscreteMDP(self.posStates,self.posStates)
+        print("finished reINIT with current state as" , self.uavMDP.currState)
+
+    def makeDiscreteMDP(self,states,actions):
+        self.uavMDP= MDP(states,actions)
+        self.history={}
+        for s in states:
+            for a in actions:
+                self.uavMDP.link(s,a,s) #transitions to the unknown state
+        for s in states:
+            probabilities=[]
+            for i in range(len(actions)):
+                probabilities.append(1/len(actions))
+
+            self.uavMDP.probs(s,actions, probabilities)
+        
+        self.uavMDP.currState=states[0]
+        self.uavMDP.buildMDP()
+        for s in states:
+            for a in actions:
+                self.history[(s,a)]=0
+
+
+
     def makeGoalsFromContracts(self):
+        name="c"+str(self.refNum)
+        self.posStates.append(name)
+        self.posStatesdecode[name]=(self.currx,self.curry,0)
+        self.refNum+=1
         for con in self.ownedContracts:
             name="c"+str(self.refNum)
             self.posStates.append(name)
             self.posStatesdecode[name]=con.pos
             self.refNum+=1
+        
     def decodeToPosition(self,state):
-        return posStatesdecode[state]
+        return self.posStatesdecode[state]
 
+    def runForGoals(self,currx, curry):
+       self.prevState =self.uavMDP.currState
+       
+
+       self.uavMDP.markovRun()
+       print("current state from python",self.uavMDP.currState)
+       r=[self.decodeToPosition(self.uavMDP.currState)[0],self.decodeToPosition(self.uavMDP.currState)[1]]
+       return r
 
 
         
@@ -106,6 +136,8 @@ class uav:
        self.setState(currx,curry,gx,gy)
        
        return self.uavMDP.prevAction
+    
+    
 
     def alterOdds(self):
         
@@ -136,7 +168,7 @@ class uav:
     def bid(self,contract,currx=0,curry=0):
         currx=self.currx
         curry=self.curry
-        
+        self.uavMDP.capital
         if(contract.price < self.uavMDP.capital):
             return contract.price-self.cost(currx,curry, contract.pos[0],contract.pos[1]) # + agents value of goal and that position
         else:
@@ -156,6 +188,7 @@ class uav:
         self.uavMDP.capital+=highestBid
         selected.ownedContracts.append(contract)
         self.ownedContracts.remove(contract)
+        print("sold", contract.pos, "to", selected)
 
     def adjustPrice(self):
 
@@ -166,7 +199,11 @@ class uav:
                     con.price-=50
                     con.timeBonus+=100
             
-
+    def afterBid(self):
+    
+        self.makeGoalsFromContracts()
+        for s in self.states:
+            self.uavMDP.link(s,self.posStates,"unknown")
 
 
 
@@ -219,4 +256,5 @@ def main():
         print("{0}: {1}".format(s, c))
     print("reward:", myMDP.capital)
 
-uav(0,0,[])
+
+

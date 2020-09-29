@@ -114,14 +114,14 @@ int main(int argc, char** argv) {
                 }
                 // Initialize python
                 Py_OptimizeFlag = 1;
-                 Py_SetProgramName(L"PythonEmbeddedExample");
-             std::cout << "Importing module..." << std::endl;
+                Py_SetProgramName(L"PythonEmbeddedExample");
+                std::cout << "Importing module..." << std::endl;
                 auto uavFile = py::module::import("uav");
 
                 std::cout << "Initializing class..." << std::endl;
                 const auto myExampleClass = uavFile.attr("uav");
                 auto seller = myExampleClass(coords.first,coords.second,xAndy);
-                for(int i =0; i < 3; i++){
+                for(int i =0; i < total_udp_ports; i++){
                 auto myExampleInstance = myExampleClass(coords.first,coords.second);
                 pythonAgents.push_back(myExampleInstance);
                 }
@@ -180,13 +180,13 @@ std::pair<double,double> initializeUAVs(System& system)
     }
 
     // Set up callback to monitor altitude while the vehicle is in flight
-    telemetry->subscribe_position([](Telemetry::Position position) {
+   /*  telemetry->subscribe_position([](Telemetry::Position position) {
         std::cout << TELEMETRY_CONSOLE_TEXT // set to blue
                   << "Altitude: " << position.relative_altitude_m << " m"
                   << NORMAL_CONSOLE_TEXT // set to default color again
                   << std::endl;
     });
-
+ */
     // Check if vehicle is ready to arm
     while (telemetry->health_all_ok() != true) {
         std::cout << "Vehicle is getting ready to arm" << std::endl;
@@ -195,16 +195,6 @@ std::pair<double,double> initializeUAVs(System& system)
 
 
 
-    /* // Arm vehicle
-    std::cout << "Arming..." << std::endl;
-    const Action::Result arm_result = action->arm();
-
-    if (arm_result != Action::Result::Success) {
-        std::cerr << ERROR_CONSOLE_TEXT << "Arming failed:" << arm_result << NORMAL_CONSOLE_TEXT
-                  << std::endl;
-    }
-
-     */
    
 
     double lat=telemetry->position().latitude_deg;
@@ -309,6 +299,13 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
                 FollowMe::Result follow_me_result = fm->start();
 
                 auto bat=telemetry->battery().remaining_percent;
+                std::cout<<"reinit"<<std::endl;
+                auto reINIT = uav.attr("reINIT")();
+
+                auto pos = uav.attr("runForGoals")(lat,longi);
+                auto newGoal =pos.cast<std::vector<double>>();
+                std::cout << "First"<<newGoal[0]<< std::endl;
+                std::cout << "Second"<<newGoal[0]<< std::endl;
 
                 if (follow_me_result != FollowMe::Result::Success) {
                     // handle start failure (in this case print error)
@@ -316,26 +313,12 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
                 }
                 while (1)
                 {
-                    lat=telemetry->position().latitude_deg;
-                    longi=telemetry->position().longitude_deg;
-                    msg = uav.attr("run")(lat,longi,latGoal,longiGoal); // Calls the getMsg
-                    std::cout << "Got msg back on C++ side: " << msg.cast<std::string>() << std::endl;
-                    auto cmsg =msg.cast<std::string>();
+                    pos = uav.attr("runForGoals")(lat,longi);
+                    newGoal =pos.cast<std::vector<double>>();
+                    std::cout << "First"<<newGoal[0]<< std::endl;
+                    std::cout << "Second"<<newGoal[1]<< std::endl;
 
-                    if(cmsg =="north"){
-                        fm->set_target_location({ lat+.001,longi, 50.f, 10.f, 0.f, 0.f });
-                        std::cout << "north m"<< std::endl;
-                    }
-                    if(cmsg =="south"){
-                       fm->set_target_location({ lat-.001,longi, 50.0f, -10.f, 0.f, 0.f });
-                    }
-
-                    if(cmsg =="east"){
-                        fm->set_target_location({ lat,longi+.001,0.f, 0.f, 10.f, 0.f });
-                    }
-                    if(cmsg =="west"){
-                        fm->set_target_location({ lat,longi-.001, 0.f, 0.f, -10.f, 0.f });
-                    }
+                    fm->set_target_location({newGoal[0],newGoal[1],0.f, 0.f, 10.f, 0.f });
                     sleep_for(seconds(5));
                     
                 }

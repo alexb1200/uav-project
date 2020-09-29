@@ -3,7 +3,7 @@ import time
 
 class Contract:
 
-    def __init__(self,x=0,y=0,z=0,price=500, timeBonus=1000):
+    def __init__(self,x=0,y=0,z=0,price=50, timeBonus=1000):
         self.price=price
         self.pos= (x,y,z)
         self.timeBonus=timeBonus

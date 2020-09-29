@@ -1,5 +1,38 @@
 import random
 
+def sarsa(value,mdp):
+    #needed initializations for later use
+    w=[]
+    avgReward=0
+    a=.5
+    b=.5
+    n=10
+    reward={}
+    state0= None
+    action0=None
+    actions=[]
+    states=[]
+
+
+    for t in range(n):
+        actions.append( mdp.run() ) 
+        states.append( mdp.currState )
+        reward[actions[len(actions)-1]]=mdp.reward(mdp.currState) #make this work
+
+        tau=t-n+1
+
+        if tau >= 0: 
+            delta=0
+            for i in range(tau+1,tau+n):
+                act=actions[i]
+                delta+=reward[act-avgReward]+ value( states[tau+n],actions[tau+n], weight) - value(states[tau], actions[tau],weight)
+                avgreward=avgReward+b*delta
+
+                w= w+a*delta* grad ( value(states[tau], actions[tau],weight) )
+
+
+
+
 def policyItr(mdp):
     vs = {}
 
