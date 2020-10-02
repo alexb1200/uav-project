@@ -59,7 +59,7 @@ class uav:
     def reINIT(self):
         self.makeGoalsFromContracts()
         print(self.posStates)
-        self.makeContinousMDP(self.posStates,self.posStates)
+        self.makeContinousMDP(self.posStates,self.reward)
         print("finished reINIT with current state as" , self.uavMDP.currState)
 
     def makeDiscreteMDP(self,states,actions):
@@ -89,11 +89,14 @@ class uav:
 
 
 
-    def makeGoalsFromContracts(self):
-        name="c"+str(self.refNum)
+    def makeGoalsFromContracts(self,refNum=0):
+        self.refNum=refNum
+        if self.refNum==0:
+            self.posStates=[]
+        """   name="c"+str(self.refNum)
         self.posStates.append(name)
         self.posStatesdecode[name]=(self.currx,self.curry,0)
-        self.refNum+=1
+        self.refNum+=1 """
         for con in self.ownedContracts:
             name="c"+str(self.refNum)
             self.posStates.append(name)
@@ -114,8 +117,7 @@ class uav:
     def runForGoals(self,currx, curry):
        self.prevState =self.uavMDP.currState
        
-       self.uavMDP.currState[0]=currx
-       self.uavMDP.currState[1]=curry
+       
        #self.uavMDP.run()
        sarsa(self.uavMDP)
        
@@ -171,10 +173,16 @@ class uav:
     def reward(self):
         positive=0
         for con in self.ownedContracts:
-            if con.complete(self.currx,self.curry):
-                positive+=con.price
+            
+            if  con.complete(self.currx,self.curry) :
+                positive+=con.price+con.timeBonus()
+                print("finished ", con.pos, "for ", positive)
+                self.ownedContracts.remove(con)
+                self.reINIT()
+                
         print("index ",self.getGoalFromIndex())
         coords= self.decodeToPosition(self.getGoalFromIndex())
+        
         return positive-self.cost(self.currx,self.curry, coords[0],coords[1] )
  
     def getGoalFromIndex(self):
@@ -183,6 +191,10 @@ class uav:
 
     def cost(self,x,y,gx,gy,bat=1,z=0,gz=0):
         sum=0
+        if( x is None and y is None):
+            x=self.currx
+            y=self.curry
+       
         for u,v in self.goals:
             if (u<x<gx or v<y<gy  or gx<x<u or gy<y<v):
                 sum-=distanceSquared(u,v,gx,gy)
