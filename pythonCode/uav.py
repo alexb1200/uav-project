@@ -2,6 +2,7 @@ import random
 import time
 from mdp import *
 from contract import *
+from cMdp import *
 
 def distanceSquared(x,y,gx,gy=0,z=0,gz=0):
         return (x-gx)**2 + (y-gy)**2 + (z-gz)**2
@@ -42,7 +43,7 @@ class uav:
         
         self.makeGoalsFromContracts()
         
-        self.makeDiscreteMDP(self.states,self.actions)
+        self.makeContinousMDP([],self.reward)
     
 
         #sim train
@@ -58,7 +59,7 @@ class uav:
     def reINIT(self):
         self.makeGoalsFromContracts()
         print(self.posStates)
-        self.makeDiscreteMDP(self.posStates,self.posStates)
+        self.makeContinousMDP(self.posStates,self.posStates)
         print("finished reINIT with current state as" , self.uavMDP.currState)
 
     def makeDiscreteMDP(self,states,actions):
@@ -80,6 +81,12 @@ class uav:
             for a in actions:
                 self.history[(s,a)]=0
 
+    def makeContinousMDP(self,actions, rewardFunction=None):
+        #lets make a state vector of the x,y positions, the index of the current goal pursued, and add later things like battery
+        state=[self.currx,self.curry,len(self.posStates)-1]
+        self.uavMDP=CMDP([i for i in range(len(actions)-1)],self.reward,state)
+
+
 
 
     def makeGoalsFromContracts(self):
@@ -96,13 +103,24 @@ class uav:
     def decodeToPosition(self,state):
         return self.posStatesdecode[state]
 
-    def runForGoals(self,currx, curry):
+    def runForGoalsDiscrete(self,currx, curry):
        self.prevState =self.uavMDP.currState
        
 
        self.uavMDP.markovRun()
        print("current state from python",self.uavMDP.currState)
-       r=[self.decodeToPosition(self.uavMDP.currState)[0],self.decodeToPosition(self.uavMDP.currState)[1]]
+       r=[self.decodeToPosition(self.uavMDP.currState[2])[0],self.decodeToPosition(self.uavMDP.currState[2])[1]]
+       return r
+    def runForGoals(self,currx, curry):
+       self.prevState =self.uavMDP.currState
+       
+       self.uavMDP.currState[0]=currx
+       self.uavMDP.currState[1]=curry
+       #self.uavMDP.run()
+       sarsa(self.uavMDP)
+       
+       print("current state from python",self.uavMDP.currState)
+       r=[self.decodeToPosition(self.getGoalFromIndex())[0],self.decodeToPosition(self.getGoalFromIndex())[1]]
        return r
 
 
@@ -150,8 +168,18 @@ class uav:
                 actionList.append(a)
             self.uavMDP.probs(s,actionList,problist)
             
-
+    def reward(self):
+        positive=0
+        for con in self.ownedContracts:
+            if con.complete(self.currx,self.curry):
+                positive+=con.price
+        print("index ",self.getGoalFromIndex())
+        coords= self.decodeToPosition(self.getGoalFromIndex())
+        return positive-self.cost(self.currx,self.curry, coords[0],coords[1] )
  
+    def getGoalFromIndex(self):
+       return self.posStates[ self.uavMDP.currState[2]]
+
 
     def cost(self,x,y,gx,gy,bat=1,z=0,gz=0):
         sum=0
@@ -258,3 +286,5 @@ def main():
 
 
 
+#lel=uav(0,0)
+#lel.runForGoals(random.random(),random.random())

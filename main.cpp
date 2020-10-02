@@ -108,8 +108,8 @@ int main(int argc, char** argv) {
                 std::vector<std::pair<double,double>> xAndy;
                 for(int i =0; i < 12; i++)
                 {
-                    latGoal   =  coords.first+(double)(rand()%10)/100;
-                    longiGoal = coords.second+(double)(rand()%10)/100;
+                    latGoal   =  coords.first+(double)(rand()%1000)/1000;
+                    longiGoal =  coords.second+(double)(rand()%1000)/1000;
                     xAndy.push_back(std::make_pair(latGoal,longiGoal));
                 }
                 // Initialize python
@@ -174,7 +174,7 @@ std::pair<double,double> initializeUAVs(System& system)
     const Telemetry::Result set_rate_result = telemetry->set_rate_position(1.0);
 
     if (set_rate_result != Telemetry::Result::Success) {
-        std::cerr << ERROR_CONSOLE_TEXT << "Setting rate failed:" << set_rate_result
+        std::cerr << ERROR_CONSOLE_TEXT << "Setting rate failed:  " << set_rate_result
                   << NORMAL_CONSOLE_TEXT << std::endl;
 
     }
@@ -294,12 +294,11 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
                 std::cout <<"finished initializing class" << std::endl;
 
-                auto msg = uav.attr("run")(lat,longi,latGoal,longiGoal); // Calls the getMsg
-                std::cout << "Got msg back on C++ side: " << msg.cast<std::string>() << std::endl;
+                
                 FollowMe::Result follow_me_result = fm->start();
 
                 auto bat=telemetry->battery().remaining_percent;
-                std::cout<<"reinit"<<std::endl;
+                std::cout<<"reinit "<<std::endl;
                 auto reINIT = uav.attr("reINIT")();
 
                 auto pos = uav.attr("runForGoals")(lat,longi);
@@ -309,8 +308,8 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
                 if (follow_me_result != FollowMe::Result::Success) {
                     // handle start failure (in this case print error)
-                    std::cout << "Failed to start following"<< std::endl;
-                }
+                    std::cout << "Failed to start following     " << std::endl;
+                } 
                 while (1)
                 {
                     pos = uav.attr("runForGoals")(lat,longi);
@@ -318,8 +317,8 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
                     std::cout << "First"<<newGoal[0]<< std::endl;
                     std::cout << "Second"<<newGoal[1]<< std::endl;
 
-                    fm->set_target_location({newGoal[0],newGoal[1],0.f, 0.f, 10.f, 0.f });
-                    sleep_for(seconds(5));
+                    fm->set_target_location({newGoal[0],newGoal[1],10.f, 0.f, 0.f, 0.f });
+                    sleep_for(seconds(4));
                     
                 }
 
