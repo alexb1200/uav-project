@@ -3,6 +3,7 @@ import time
 from mdp import *
 from contract import *
 from cMdp import *
+import matplotlib.pyplot as plt
 
 def distanceSquared(x,y,gx,gy=0,z=0,gz=0):
         return (x-gx)**2 + (y-gy)**2 + (z-gz)**2
@@ -33,7 +34,6 @@ class uav:
         self.posStates=[]
         self.posStatesdecode={}
         self.refNum=0
-        
 
 
         self.addGoal(gx,gy)
@@ -58,8 +58,11 @@ class uav:
 
     def reINIT(self):
         self.makeGoalsFromContracts()
+      
+         #make sure i dont have my lat and long mixed up
         print(self.posStates)
         self.makeContinousMDP(self.posStates,self.reward)
+        
         print("finished reINIT with current state as" , self.uavMDP.currState)
 
     def makeDiscreteMDP(self,states,actions):
@@ -85,6 +88,19 @@ class uav:
         #lets make a state vector of the x,y positions, the index of the current goal pursued, and add later things like battery
         state=[self.currx,self.curry,len(self.posStates)-1]
         self.uavMDP=CMDP([i for i in range(len(actions)-1)],self.reward,state)
+    
+    def getListOfGoalsX(self):
+        x= [self.posStatesdecode[p][0] for p in self.posStates]
+
+        x.append(self.uavMDP.currState[0])
+        return x
+    
+    def getListOfGoalsY(self):
+        y= [self.posStatesdecode[p][1] for p in self.posStates]
+        
+        y.append(self.uavMDP.currState[1])
+        return y
+    
 
 
 
@@ -120,10 +136,15 @@ class uav:
        
        #self.uavMDP.run()
        sarsa(self.uavMDP)
+       x= [self.posStatesdecode[p][0] for p in self.posStates]
+       y= [self.posStatesdecode[p][1] for p in self.posStates]
+
+       x.append(self.uavMDP.currState[0])
+       y.append(self.uavMDP.currState[1])
        
        print("current state from python",self.uavMDP.currState)
-       r=[self.decodeToPosition(self.getGoalFromIndex())[0],self.decodeToPosition(self.getGoalFromIndex())[1]]
-       return r
+       selectedAction=[self.decodeToPosition(self.getGoalFromIndex())[0],self.decodeToPosition(self.getGoalFromIndex())[1]]
+       return selectedAction
 
 
         

@@ -15,6 +15,12 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+
+#include <mutex>
+#include <condition_variable>
+#include <queue>
+#include <functional>
+
 namespace py = pybind11;
 using namespace py::literals;
 
@@ -26,11 +32,90 @@ using namespace std::chrono;
 static void takeoff_and_land(System& system);
 static void moverand(System& system, pybind11::object& uav);
 std::pair<double,double> initializeUAVs(System& system);
+void getUavGoals(pybind11::object & uav);
 
 #define ERROR_CONSOLE_TEXT "\033[31m" // Turn text on console red
 #define TELEMETRY_CONSOLE_TEXT "\033[34m" // Turn text on console blue
 #define NORMAL_CONSOLE_TEXT "\033[0m" // Restore normal console colour
 PYBIND11_MAKE_OPAQUE(std::vector<int>);
+
+
+//found it on stack overflow  https://stackoverflow.com/questions/26516683/reusing-thread-in-loop-c
+class ThreadPool
+{
+    public:
+
+    ThreadPool (int threads) : shutdown_ (false)
+    {
+        // Create the specified number of threads
+        threads_.reserve (threads);
+        for (int i = 0; i < threads; ++i)
+            threads_.emplace_back (std::bind (&ThreadPool::threadEntry, this, i));
+    }
+
+    ~ThreadPool ()
+    {
+        {
+            // Unblock any threads and tell them to stop
+            std::unique_lock <std::mutex> l (lock_);
+
+            shutdown_ = true;
+            condVar_.notify_all();
+        }
+
+        // Wait for all threads to stop
+        std::cerr << "Joining threads" << std::endl;
+        for (auto& thread : threads_)
+            thread.join();
+    }
+
+    void doJob (std::function <void (void)> func)
+    {
+        // Place a job on the queu and unblock a thread
+        std::unique_lock <std::mutex> l (lock_);
+
+        jobs_.emplace (std::move (func));
+        condVar_.notify_one();
+    }
+
+    protected:
+
+    void threadEntry (int i)
+    {
+        std::function <void (void)> job;
+
+        while (1)
+        {
+            {
+                std::unique_lock <std::mutex> l (lock_);
+
+                while (! shutdown_ && jobs_.empty())
+                    condVar_.wait (l);
+
+                if (jobs_.empty ())
+                {
+                    // No jobs to do and we are shutting down
+                    std::cerr << "Thread " << i << " terminates" << std::endl;
+                    return;
+                 }
+
+                std::cerr << "Thread " << i << " does a job" << std::endl;
+                job = std::move (jobs_.front ());
+                jobs_.pop();
+            }
+
+            // Do the job without holding any locks
+            job ();
+        }
+
+    }
+
+    std::mutex lock_;
+    std::condition_variable condVar_;
+    bool shutdown_;
+    std::queue <std::function <void (void)>> jobs_;
+    std::vector <std::thread> threads_;
+};
 
 
 
@@ -115,12 +200,15 @@ int main(int argc, char** argv) {
                 // Initialize python
                 Py_OptimizeFlag = 1;
                 Py_SetProgramName(L"PythonEmbeddedExample");
-                std::cout << "Importing module... " << std::endl;
+                std::cout << "Importing module...   " << std::endl;
                 auto uavFile = py::module::import("uav");
 
-                std::cout << "Initializing class... " << std::endl;
+                std::cout << "Initializing class...   " << std::endl;
                 const auto myExampleClass = uavFile.attr("uav");
                 auto seller = myExampleClass(coords.first,coords.second,xAndy);
+                //testing map
+                getUavGoals(std::ref(seller));
+
                 for(int i =0; i < total_udp_ports; i++){
                 auto myExampleInstance = myExampleClass(coords.first,coords.second);
                 pythonAgents.push_back(myExampleInstance);
@@ -137,21 +225,24 @@ int main(int argc, char** argv) {
     std::vector<std::thread> threads1;
     std::cout<<"first for\n";
     int i=0;
+
+    ThreadPool p (2);
+    while(true){
     for (auto uuid : dc.system_uuids()) {
 
         System& system = dc.system(uuid);
-         //std::thread t(&takeoff_and_land, std::ref(system));
-        std::thread t(& moverand, std::ref(system), std::ref(pythonAgents.at(i)));
-        threads1.push_back(std::move(t));
+        
+        p.doJob(std::bind (& moverand, std::ref(system), std::ref(pythonAgents.at(i))) );
+        
         i++;
     }
 
-   
-    
-        std::cout <<"second for\n";
-        for (auto& t : threads1) {
-            t.join();
-        }
+    i=0;
+
+    }
+
+
+        
     
 //////////END MAVLINK
 
@@ -202,13 +293,31 @@ std::pair<double,double> initializeUAVs(System& system)
     return std::make_pair(lat,longi);
 }
 
+void getUavGoals(pybind11::object & uav)
+{
+    try { 
+                auto posY = uav.attr("getListOfGoalsY")();
+                auto posX = uav.attr("getListOfGoalsX")();
 
+                auto logger = py::module::import("logger");
+
+                auto plot = logger.attr("visual")(posX,posY);
+
+               
+
+
+            } catch (std::exception& e) {
+                std::cerr << "Something went wrong: " << e.what() << std::endl;
+               return ;
+            }
+
+}
 
 
 
 void moverand(System& system, pybind11::object & uav) //pass in a python uav reference 
 {
-    std::cout << "got into the function"<<std::endl;
+    
     auto telemetry = std::make_shared<Telemetry>(system);
     auto action = std::make_shared<Action>(system);
     auto fm = std::make_shared<FollowMe>(system);
@@ -308,9 +417,9 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
                 if (follow_me_result != FollowMe::Result::Success) {
                     // handle start failure (in this case print error)
-                    std::cout << "Failed to start following" << std::endl;
+                    std::cout << "Failed to start following  " << std::endl;
                 } 
-                while (1)
+                for(int i =0; i <1; i++)
                 {
                     pos = uav.attr("runForGoals")(lat,longi);
                     newGoal =pos.cast<std::vector<double>>();
@@ -329,7 +438,7 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
             }
 
 
-        //return;
+        return;
 }
 /*
 void moverand(System& system, pybind11::object & uav) //pass in a python uav reference 
