@@ -32,7 +32,8 @@ using namespace std::chrono;
 static void takeoff_and_land(System& system);
 static void moverand(System& system, pybind11::object& uav);
 std::pair<double,double> initializeUAVs(System& system);
-void getUavGoals(pybind11::object & uav);
+void getUavGoals(pybind11::object & uav, pybind11::object & visual);
+pybind11::object getUavGoalsInit(pybind11::object & uav);
 
 #define ERROR_CONSOLE_TEXT "\033[31m" // Turn text on console red
 #define TELEMETRY_CONSOLE_TEXT "\033[34m" // Turn text on console blue
@@ -207,7 +208,7 @@ int main(int argc, char** argv) {
                 const auto myExampleClass = uavFile.attr("uav");
                 auto seller = myExampleClass(coords.first,coords.second,xAndy);
                 //testing map
-                getUavGoals(std::ref(seller));
+                auto plot = getUavGoalsInit(std::ref(seller));
 
                 for(int i =0; i < total_udp_ports; i++){
                 auto myExampleInstance = myExampleClass(coords.first,coords.second);
@@ -218,31 +219,33 @@ int main(int argc, char** argv) {
                 std::cout<<"ran bid "<<std::endl;
 
                 
+    
+    
+
+        std::vector<std::thread> threads1;
+        std::cout<<"first for\n";
+        int i=0;
+
+        ThreadPool p (2);
+        while(true){
+        for (auto uuid : dc.system_uuids()) {
+
+            System& system = dc.system(uuid);
+            
+            p.doJob(std::bind (& moverand, std::ref(system), std::ref(pythonAgents.at(i))) );
+            //  p.doJob(std::bind ( & getUavGoals, std::ref(pythonAgents.at(i)), std::ref(plot) ));
+            i++;
+            sleep_for(seconds(3));
+        }
+
+        i=0;
+
+        }
+
+
     }
-    catch(std::exception &e) {std::cerr << "Something went wrong: " << e.what() << std::endl;
+catch(std::exception &e) {std::cerr << "Something went wrong: " << e.what() << std::endl;
                return EXIT_FAILURE;}
-
-    std::vector<std::thread> threads1;
-    std::cout<<"first for\n";
-    int i=0;
-
-    ThreadPool p (2);
-    while(true){
-    for (auto uuid : dc.system_uuids()) {
-
-        System& system = dc.system(uuid);
-        
-        p.doJob(std::bind (& moverand, std::ref(system), std::ref(pythonAgents.at(i))) );
-        
-        i++;
-    }
-
-    i=0;
-
-    }
-
-
-        
     
 //////////END MAVLINK
 
@@ -293,7 +296,7 @@ std::pair<double,double> initializeUAVs(System& system)
     return std::make_pair(lat,longi);
 }
 
-void getUavGoals(pybind11::object & uav)
+pybind11::object getUavGoalsInit(pybind11::object & uav)
 {
     try { 
                 auto posY = uav.attr("getListOfGoalsY")();
@@ -303,6 +306,28 @@ void getUavGoals(pybind11::object & uav)
 
                 auto plot = logger.attr("visual")(posX,posY);
 
+                return plot;
+
+               
+
+
+            } catch (std::exception& e) {
+                std::cerr << "Something went wrong:  " << e.what() << std::endl;
+               
+            }
+
+}
+void getUavGoals(pybind11::object & uav, pybind11::object & visual){
+    try { 
+                auto posY = uav.attr("getListOfGoalsY")();
+                auto posX = uav.attr("getListOfGoalsX")();
+
+                
+
+                auto plot = visual.attr("plotter")(posX,posY);
+
+
+
                
 
 
@@ -310,7 +335,7 @@ void getUavGoals(pybind11::object & uav)
                 std::cerr << "Something went wrong: " << e.what() << std::endl;
                return ;
             }
-
+            return ;
 }
 
 
@@ -368,24 +393,10 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
     sleep_for(seconds(5));
     
-    // Initialize python
-  /*   Py_OptimizeFlag = 1;
-    Py_SetProgramName(L"PythonEmbeddedExample");
-   */
+   
     double lat=telemetry->position().latitude_deg;
     double longi=telemetry->position().longitude_deg;
-    double latGoal=telemetry->position().latitude_deg +(double)(rand()%10)/100;
-    double longiGoal=telemetry->position().longitude_deg +(double)(rand()%10)/100;
-    std::vector<std::pair<double,double>> xAndy;
-    for(int i =0; i < 12; i++)
-     {
-        latGoal=telemetry->position().latitude_deg +(double)(rand()%10)/100;
-        longiGoal= telemetry->position().longitude_deg +(double)(rand()%10)/100;
-        xAndy.push_back(std::make_pair(latGoal,longiGoal));
-    }
-        latGoal=telemetry->position().latitude_deg +(double)(rand()%10)/100;
-        longiGoal= telemetry->position().longitude_deg +(double)(rand()%10)/100;
-
+   
 
         try { //i think threading is  the issue, each thread is trying to excute and they cause the fault 9/17/20 might be print statements from python actually
                 //py::scoped_interpreter guard{};
@@ -427,7 +438,7 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
                     std::cout << "Second"<<newGoal[1]<< std::endl;
 
                     fm->set_target_location({newGoal[0],newGoal[1],10.f, 0.f, 0.f, 0.f });
-                    sleep_for(seconds(4));
+                    sleep_for(seconds(2));
                     
                 }
 
