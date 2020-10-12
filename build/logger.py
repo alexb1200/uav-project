@@ -13,6 +13,7 @@ class visual:
 
     def plotter(self,x,y):
         plt.ion()
+        plt.cla()
         plt.scatter(x,y)
         plt.draw()
         plt.pause(0.001)

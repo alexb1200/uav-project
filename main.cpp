@@ -233,9 +233,10 @@ int main(int argc, char** argv) {
             System& system = dc.system(uuid);
             
             p.doJob(std::bind (& moverand, std::ref(system), std::ref(pythonAgents.at(i))) );
-            //  p.doJob(std::bind ( & getUavGoals, std::ref(pythonAgents.at(i)), std::ref(plot) ));
+            p.doJob(std::bind ( & getUavGoals, std::ref(pythonAgents.at(i)), std::ref(plot) ));
             i++;
             sleep_for(seconds(3));
+            //remember the   loop can push threads to the queue too quickly and overflow
         }
 
         i=0;
