@@ -44,7 +44,7 @@ class CMDP:
         self.currState= state
         self.epsilon=.2
         
-        self.capital=1000
+        self.capital=400
         self.weight=np.zeros(len(state))
     
     def run(self):

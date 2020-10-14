@@ -32,7 +32,7 @@ using namespace std::chrono;
 static void takeoff_and_land(System& system);
 static void moverand(System& system, pybind11::object& uav);
 std::pair<double,double> initializeUAVs(System& system);
-void getUavGoals(pybind11::object & uav, pybind11::object & visual);
+void getUavGoals(std::vector<pybind11::object> & uav, pybind11::object & visual);
 pybind11::object getUavGoalsInit(pybind11::object & uav);
 
 #define ERROR_CONSOLE_TEXT "\033[31m" // Turn text on console red
@@ -192,16 +192,16 @@ int main(int argc, char** argv) {
                 double latGoal;
                 double longiGoal;
                 std::vector<std::pair<double,double>> xAndy;
-                for(int i =0; i < 51; i++)
+                for(int i =0; i < 20; i++)
                 {
-                    latGoal   =  coords.first+(double)(rand()%1000-500)/10000.0f;
-                    longiGoal =  coords.second+(double)(rand()%1000-500)/10000.0f;
+                    latGoal   =  coords.first+(double)(rand()%1000-500)/1000000.0f;
+                    longiGoal =  coords.second+(double)(rand()%1000-500)/1000000.0f;
                     xAndy.push_back(std::make_pair(latGoal,longiGoal));
                 }
                 // Initialize python
                 Py_OptimizeFlag = 1;
                 Py_SetProgramName(L"PythonEmbeddedExample");
-                std::cout << "Importing module...   " << std::endl;
+                std::cout << "Importing module..." << std::endl;
                 auto uavFile = py::module::import("uav");
 
                 std::cout << "Initializing class...   " << std::endl;
@@ -227,25 +227,35 @@ int main(int argc, char** argv) {
         int i=0;
 
         ThreadPool p (2);
+        for (auto uuid : dc.system_uuids()) {
+
+            System& system = dc.system(uuid);
+            
+            p.doJob(std::bind (& initializeUAVs, std::ref(system)));
+            sleep_for(seconds( 3 ));
+        }
         while(true){
+        
+        p.doJob(std::bind ( & getUavGoals, std::ref(pythonAgents), std::ref(plot) ));
+        sleep_for(seconds(3));
+
         for (auto uuid : dc.system_uuids()) {
 
             System& system = dc.system(uuid);
             
             p.doJob(std::bind (& moverand, std::ref(system), std::ref(pythonAgents.at(i))) );
-            p.doJob(std::bind ( & getUavGoals, std::ref(pythonAgents.at(i)), std::ref(plot) ));
-            i++;
-            sleep_for(seconds(3));
+              i++;
+            
             //remember the   loop can push threads to the queue too quickly and overflow
         }
 
         i=0;
-
+        
         }
 
 
     }
-catch(std::exception &e) {std::cerr << "Something went wrong: " << e.what() << std::endl;
+catch(std::exception &e) {std::cerr << "Something went wrong:   " << e.what() << std::endl;
                return EXIT_FAILURE;}
     
 //////////END MAVLINK
@@ -287,7 +297,29 @@ std::pair<double,double> initializeUAVs(System& system)
         std::cout << "Vehicle is getting ready to arm" << std::endl;
         sleep_for(seconds(1));
     }
+    //arm vehicle 
 
+    std::cout << "Arming..." << std::endl;
+    const Action::Result arm_result = action->arm();
+
+    if (arm_result != Action::Result::Success) {
+        std::cerr << ERROR_CONSOLE_TEXT << "Arming failed:" << arm_result << NORMAL_CONSOLE_TEXT
+                  << std::endl;
+    }
+
+    // Take off
+    std::cout << "Taking off..." << std::endl;
+    const Action::Result takeoff_result = action->takeoff();
+
+    while (takeoff_result != Action::Result::Success){}
+    
+    if (takeoff_result != Action::Result::Success) {
+        std::cerr << ERROR_CONSOLE_TEXT << "Takeoff failed:" << takeoff_result
+                  << NORMAL_CONSOLE_TEXT << std::endl;
+    }
+
+    //sleep_for(seconds(5));
+    
 
 
    
@@ -305,7 +337,7 @@ pybind11::object getUavGoalsInit(pybind11::object & uav)
 
                 auto logger = py::module::import("logger");
 
-                auto plot = logger.attr("visual")(posX,posY);
+                auto plot = logger.attr("visual")();
 
                 return plot;
 
@@ -318,10 +350,20 @@ pybind11::object getUavGoalsInit(pybind11::object & uav)
             }
 
 }
-void getUavGoals(pybind11::object & uav, pybind11::object & visual){
+void getUavGoals(std::vector<pybind11::object> & uav, pybind11::object & visual){
     try { 
-                auto posY = uav.attr("getListOfGoalsY")();
-                auto posX = uav.attr("getListOfGoalsX")();
+                std::vector<std::vector<double>> posY ;
+                 std::vector<std::vector<double>> posX ; 
+                for(auto u : uav)
+                {
+                   
+                    posY.push_back(u.attr("getListOfGoalsY")().cast<std::vector<double>>() );
+                    posX.push_back(u.attr("getListOfGoalsX")().cast<std::vector<double>>() );
+
+                }
+                
+
+
 
                 
 
@@ -333,7 +375,7 @@ void getUavGoals(pybind11::object & uav, pybind11::object & visual){
 
 
             } catch (std::exception& e) {
-                std::cerr << "Something went wrong: " << e.what() << std::endl;
+                std::cerr << "Something went wrong:          " << e.what() << std::endl;
                return ;
             }
             return ;
@@ -373,26 +415,6 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
     }
 
     // Arm vehicle
-    std::cout << "Arming..." << std::endl;
-    const Action::Result arm_result = action->arm();
-
-    if (arm_result != Action::Result::Success) {
-        std::cerr << ERROR_CONSOLE_TEXT << "Arming failed:" << arm_result << NORMAL_CONSOLE_TEXT
-                  << std::endl;
-    }
-
-    // Take off
-    std::cout << "Taking off..." << std::endl;
-    const Action::Result takeoff_result = action->takeoff();
-
-    while (takeoff_result != Action::Result::Success){}
-    
-    if (takeoff_result != Action::Result::Success) {
-        std::cerr << ERROR_CONSOLE_TEXT << "Takeoff failed:" << takeoff_result
-                  << NORMAL_CONSOLE_TEXT << std::endl;
-    }
-
-    sleep_for(seconds(5));
     
    
     double lat=telemetry->position().latitude_deg;
@@ -413,7 +435,7 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
                 sleep_for(seconds(1));
 
-                std::cout <<"finished initializing class" << std::endl;
+               // std::cout <<"finished initializing class" << std::endl;
 
                 
                 FollowMe::Result follow_me_result = fm->start();
@@ -431,7 +453,7 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
                     // handle start failure (in this case print error)
                     std::cout << "Failed to start following  " << std::endl;
                 } 
-                for(int i =0; i <1; i++)
+                for(int i =0; i <10; i++)
                 {
                     pos = uav.attr("runForGoals")(lat,longi);
                     newGoal =pos.cast<std::vector<double>>();
