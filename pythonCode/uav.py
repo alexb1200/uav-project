@@ -132,7 +132,9 @@ class uav:
        return r
     def runForGoals(self,currx, curry):
        self.prevState =self.uavMDP.currState
-       
+       self.uavMDP.currState[0]=currx
+       self.uavMDP.currState[1]=curry
+
        
        #self.uavMDP.run()
        sarsa(self.uavMDP)
@@ -240,16 +242,22 @@ class uav:
         selected=uavs[0]
         for  uav in uavs:
             bid=uav.bid(contract)
-            if(bid>=highestBid):
+            if(bid>=highestBid>0):
                 #add coin flip or other  determiner when equal bid
-                selected=uav
-                highestBid=bid
-
-        selected.uavMDP.capital-=highestBid
-        self.uavMDP.capital+=highestBid
-        selected.ownedContracts.append(contract)
-        self.ownedContracts.remove(contract)
-        print("sold", contract.pos, "to", selected)
+                if(highestBid==bid):
+                    if(random.uniform(0,1) >.5):
+                        selected=uav
+                        highestBid=bid
+                        print("random")
+                else:
+                    selected=uav
+                    highestBid=bid
+        if(highestBid> 0):
+            selected.uavMDP.capital-=highestBid
+            self.uavMDP.capital+=highestBid
+            selected.ownedContracts.append(contract)
+            self.ownedContracts.remove(contract)
+            print("sold", contract.pos, "to", selected)
 
     def adjustPrice(self):
 
@@ -269,7 +277,7 @@ class uav:
 
 
 def biddingEnviroment(uavs, seller):
-    seller.adjustPrice()
+    #seller.adjustPrice()
     for con in seller.ownedContracts:
         seller.sell(uavs,con)
 

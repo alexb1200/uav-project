@@ -5,13 +5,13 @@ def distanceSquared(x,y,gx,gy=0,z=0,gz=0):
 
 class Contract:
 
-    def __init__(self,x=0,y=0,z=0,price=100, timeBonus=1000):
+    def __init__(self,x=0,y=0,z=0,price=50, timeBonus=1000):
         self.price=price
         self.pos= (x,y,z)
         self.timebonus=timeBonus
         self.startTime=time.time()
 
-    def complete(self,x,y,z=0,r=.000000001):
+    def complete(self,x,y,z=0,r=.000000000000001):
         if (distanceSquared(x,y,self.pos[0],self.pos[1],z,self.pos[2]) < r**2):
             return True
         else: 

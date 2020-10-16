@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
                 double latGoal;
                 double longiGoal;
                 std::vector<std::pair<double,double>> xAndy;
-                for(int i =0; i < 20; i++)
+                for(int i =0; i < 50; i++)
                 {
                     latGoal   =  coords.first+(double)(rand()%1000-500)/1000000.0f;
                     longiGoal =  coords.second+(double)(rand()%1000-500)/1000000.0f;
@@ -201,22 +201,23 @@ int main(int argc, char** argv) {
                 // Initialize python
                 Py_OptimizeFlag = 1;
                 Py_SetProgramName(L"PythonEmbeddedExample");
-                std::cout << "Importing module..." << std::endl;
+                std::cout << "Importing module...  " << std::endl;
                 auto uavFile = py::module::import("uav");
 
-                std::cout << "Initializing class...   " << std::endl;
+                std::cout << "Initializing class..." << std::endl;
                 const auto myExampleClass = uavFile.attr("uav");
                 auto seller = myExampleClass(coords.first,coords.second,xAndy);
                 //testing map
                 auto plot = getUavGoalsInit(std::ref(seller));
 
                 for(int i =0; i < total_udp_ports; i++){
+                    //everyone has the same coords so the same state so the same bid, need to change
                 auto myExampleInstance = myExampleClass(coords.first,coords.second);
                 pythonAgents.push_back(myExampleInstance);
                 }
                 const auto bidEnviroment = uavFile.attr("biddingEnviroment");
                 auto runBid = bidEnviroment(pythonAgents,seller);
-                std::cout<<"ran bid "<<std::endl;
+                std::cout<<"ran bid"<<std::endl;
 
                 
     
@@ -375,7 +376,7 @@ void getUavGoals(std::vector<pybind11::object> & uav, pybind11::object & visual)
 
 
             } catch (std::exception& e) {
-                std::cerr << "Something went wrong:          " << e.what() << std::endl;
+                std::cerr << "Something went wrong: " << e.what() << std::endl;
                return ;
             }
             return ;
@@ -451,9 +452,9 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
                 if (follow_me_result != FollowMe::Result::Success) {
                     // handle start failure (in this case print error)
-                    std::cout << "Failed to start following  " << std::endl;
+                    std::cout << "Failed to start following   " << std::endl;
                 } 
-                for(int i =0; i <10; i++)
+                for(int i =0; i <1; i++)
                 {
                     pos = uav.attr("runForGoals")(lat,longi);
                     newGoal =pos.cast<std::vector<double>>();

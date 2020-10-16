@@ -56,5 +56,21 @@ class CMDP:
         else:
             a=self.actions[ int(random.random()*(len(self.actions)-1)) ]
         
+        self.act(a)
+
+    def simrun(self):
+        r=random.random()
+
+        if (r>self.epsilon):
+           a= int(np.max( [value(self.currState,act,self.weight) for act in self.actions] ) )
+           print("a type", type(a), " and val ", a)
+        else:
+            a=self.actions[ int(random.random()*(len(self.actions)-1)) ]
+        return a
+    def act(self,a):
         self.currState[2]=a
-        self.capital+=self.rewardFunction()
+        r=self.rewardFunction()
+        self.capital+=r
+        return r
+
+
