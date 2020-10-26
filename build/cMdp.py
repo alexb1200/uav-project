@@ -7,7 +7,7 @@ def sarsa(mdp):
     avgReward=0
     a=.5
     b=.5
-    n=1
+    n=2
     reward={}
     state0= mdp.currState
     action0=None
@@ -21,12 +21,13 @@ def sarsa(mdp):
         reward[actions[len(actions)-1]]=mdp.rewardFunction() #make this work
 
         tau=t-n+1
-
+        #never executes
         if tau >= 0: 
             delta=0
             for i in range(tau+1,tau+n):
+                
                 act=actions[i]
-                delta+=reward[act] -avgReward+ value( states[tau+n],actions[tau+n], weight) - value(states[tau], actions[tau],weight)
+                delta+=reward[act] -avgReward+ value( states[(tau+n)%n],actions[(tau+n)%n], mdp.weight) - value(states[tau], actions[tau],mdp.weight)
                 avgreward=avgReward+b*delta
 
                 w= w+a*delta* np.gradient( value(states[tau], actions[tau],weight) )
@@ -42,7 +43,7 @@ class CMDP:
         self.actions=actions
         self.rewardFunction=rewardFunction
         self.currState= state
-        self.epsilon=.2
+        self.epsilon=.02
         
         self.capital=400
         self.weight=np.zeros(len(state))

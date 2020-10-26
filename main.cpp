@@ -411,7 +411,7 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
 
     // Check if vehicle is ready to arm
     while (telemetry->health_all_ok() != true) {
-        std::cout << "Vehicle is getting ready to arm" << std::endl;
+        std::cout << "Vehicle is getting ready to arm " << std::endl;
         sleep_for(seconds(1));
     }
 
@@ -459,7 +459,7 @@ void moverand(System& system, pybind11::object & uav) //pass in a python uav ref
                     pos = uav.attr("runForGoals")(lat,longi);
                     newGoal =pos.cast<std::vector<double>>();
                     std::cout << "First"<<newGoal[0]<< std::endl;
-                    std::cout << "Second"<<newGoal[1]<< std::endl;
+                    std::cout << "Second "<<newGoal[1]<< std::endl;
 
                     fm->set_target_location({newGoal[0],newGoal[1],10.f, 0.f, 0.f, 0.f });
                     sleep_for(seconds(2));

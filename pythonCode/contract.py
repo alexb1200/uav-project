@@ -11,7 +11,7 @@ class Contract:
         self.timebonus=timeBonus
         self.startTime=time.time()
 
-    def complete(self,x,y,z=0,r=.000000000000001):
+    def complete(self,x,y,z=0,r=.00000000000001):
         if (distanceSquared(x,y,self.pos[0],self.pos[1],z,self.pos[2]) < r**2):
             return True
         else: 
